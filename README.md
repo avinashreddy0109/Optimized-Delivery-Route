@@ -1,64 +1,74 @@
-# Optimized Delivery Route Planning with Traffic Congestion Simulation
+# Import necessary libraries
+import networkx as nx
+import folium
+import pandas as pd
+import matplotlib.pyplot as plt
 
-## Overview
-This project aims to develop a system for optimized delivery route planning using **Traveling Salesman Problem (TSP)** techniques while incorporating **traffic congestion simulation**. The goal is to reduce travel time, minimize costs, and improve efficiency for logistics and delivery operations.
+# Example delivery points (latitude, longitude)
+delivery_points = [
+    (40.712776, -74.005974),  # New York City
+    (34.052235, -118.243683),  # Los Angeles
+    (41.878113, -87.629799),   # Chicago
+    (51.507351, -0.127758),    # London
+]
 
-## Features
-- **Traffic Congestion Simulation**: Simulates various traffic conditions based on the time of day (peak hours, off-peak hours).
-- **Route Optimization**: Utilizes the **TSP approximation algorithm** to find the most efficient route based on travel time and traffic conditions.
-- **Visualization**: Displays the optimized delivery route on an interactive map.
-- **Cost and Time Analysis**: Calculates the total delivery time and estimated costs (e.g., fuel, time).
+# Function to simulate traffic congestion
+def simulate_traffic_condition(time_of_day):
+    if time_of_day in ['8-9AM', '5-6PM']:  # Peak hours
+        return 1.5  # 50% more time due to traffic
+    elif time_of_day in ['12-1PM']:  # Moderate traffic
+        return 1.2  # 20% more time
+    else:
+        return 1  # No additional time in off-peak hours
 
-## Technologies
-- **Python 3.x**
-- **networkx**: For graph algorithms and TSP optimization.
-- **folium**: For visualizing routes on a map.
-- **pandas**: For data handling and manipulation.
-- **matplotlib**: For plotting cost and time analysis.
+# Function to calculate travel time (example using Euclidean distance)
+def calculate_travel_time(point1, point2):
+    lat1, lon1 = point1
+    lat2, lon2 = point2
+    return ((lat2 - lat1)**2 + (lon2 - lon1)**2)**0.5
 
-## Installation
-To set up the project on your local machine, follow the steps below:
+# Create a graph
+G = nx.Graph()
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/your-repo/optimized-delivery-route.git
-    cd optimized-delivery-route
-    ```
+# Add delivery points (nodes)
+for i, point in enumerate(delivery_points):
+    G.add_node(i, pos=point)
 
-2. Install required dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+# Add edges between delivery points with travel times adjusted for traffic
+for i in range(len(delivery_points)):
+    for j in range(i + 1, len(delivery_points)):
+        travel_time = calculate_travel_time(delivery_points[i], delivery_points[j])
+        # Adjust travel time based on traffic congestion
+        adjusted_travel_time = travel_time * simulate_traffic_condition('8-9AM')  # Example: Peak hour
+        G.add_edge(i, j, weight=adjusted_travel_time)
 
-## Usage
-1. **Traffic Congestion Simulation**: Simulates traffic conditions at different times of the day.
-    - Peak hours (e.g., 8-9 AM, 5-6 PM) result in increased travel time.
-    - Off-peak hours have no additional delays.
-   
-2. **Route Optimization**: The system uses the **TSP algorithm** to optimize the delivery route and minimize travel time and costs.
+# Use TSP approximation to find the shortest route
+optimized_route = nx.approximation.traveling_salesman_problem(G, cycle=False, weight='weight')
 
-3. **Route Visualization**: The optimized route is visualized on an interactive **folium** map, showing delivery points and the optimal path between them.
+# Visualize the optimized route using folium
+m = folium.Map(location=[delivery_points[0][0], delivery_points[0][1]], zoom_start=12)
 
-4. **Running the Code**: Execute the Python script to generate the optimized delivery route:
-    ```bash
-    python optimized_route.py
-    ```
-    This will output an HTML file (`optimized_route_map.html`) with the visualized optimized route.
+# Add markers for each delivery point
+for point in [delivery_points[i] for i in optimized_route]:
+    folium.Marker([point[0], point[1]]).add_to(m)
 
-## Example Output
-- **Interactive Map**: Displays the delivery points and the optimized route on a map.
-- **Console Output**: Provides the total travel time and estimated delivery costs.
+# Add the optimized route as a polyline
+route_coords = [delivery_points[i] for i in optimized_route]
+folium.PolyLine(locations=route_coords, color='blue').add_to(m)
 
-## Contributing
-We welcome contributions to this project! If you would like to contribute, follow these steps:
-1. Fork this repository.
-2. Create a new branch.
-3. Make your changes.
-4. Push your changes and create a pull request.
+# Save the map as an HTML file
+m.save("optimized_route_map.html")
 
-## License
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+# Calculate and display the total travel time
+total_travel_time = sum([G[optimized_route[i]][optimized_route[i+1]]['weight'] for i in range(len(optimized_route)-1)])
+print(f"Total travel time for optimized route: {total_travel_time} units")
 
----
+# Plot a simple cost vs. time graph
+times = [G[optimized_route[i]][optimized_route[i+1]]['weight'] for i in range(len(optimized_route)-1)]
+plt.plot(range(len(times)), times, label='Travel Time')
+plt.xlabel('Route Segments')
+plt.ylabel('Travel Time (units)')
+plt.title('Travel Time per Route Segment')
+plt.legend()
+plt.show()
 
-Feel free to customize the content (like repository links, licensing, etc.) to fit your actual project. Let me know if you need further modifications or details!
